@@ -1,0 +1,72 @@
+services:
+  web:
+    container_name: dbsyncer_api
+    hostname: dbsyncer-api.jarudat.com
+    image: jimmyjarudat/dbsyncer:latest
+    healthcheck:
+      disable: true
+    ports:
+      - "3010:3000"                   
+    environment:
+      NODE_ENV: "production"
+      PORT: "3000"                    
+
+      # ดึงอย่างเดียว CatronSystem
+      DATABASE_CARTONSYSTEM: "sqlserver://host:1433;database=mydb;user=usermane;password={password};encrypt=false;trustServerCertificate=true"   
+      # เชื่อมฐานจริง sync noreturn_main and text_file , text_line railtime sync
+
+      # เลือกซิ้งระหว่าง 'MARIADB' | 'FILESYSTEM';    สำหรับสริปดึงจาก carton  หาก production ค่อยเปลี่ยนเป็น FILESYSTEM
+      DBSYNC: "MARIADB"
+
+      # run script sync noreturn_main 
+      SCRIPT_SYNC_NORETURN_MAIN: "false"
+
+      # สำหรับ sync แบบเรียลไทม์  ต้นทาง maridb to sqlserver    (one-way)
+      DEBEZIUM_FILESYSTEM_ENABLED: "true"   # ประมวลผลทุกตาราง ฐาน files_system_nova
+      DEBEZIUM_YII2_ENABLED: "true"         # ประมวลผลเฉพาะ noreturn + noreturn_main
+      DEBEZIUM_SYNC_TEXT_FILE: "true"       # สำหรับซิ้งข้อมูลตาราง textfile textline ของ yii ไปยัง sqlserver 10.20.1.70
+      
+      # basic auth
+      AUTH_USERNAME: "username"
+      AUTH_PASSWORD: "password"
+
+      # redis config
+      REDIS_HOST: "192.168.2.254"
+      REDIS_PORT: "3007"
+      REDIS_PASSWORD: "password"
+
+      # Telegram Bot Configuration
+      TELEGRAM_BOT_TOKEN: "my_token"
+      
+      # Telegram Groups 
+      TELEGRAM_GROUP_ADMIN: "my-group-id"
+
+
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - 8.8.4.4
+
+    networks:
+      - main_public
+    extra_hosts:
+      - "dbsync.profile.co.th:192.168.2.254"
+      - "host.docker.internal:host-gateway"
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+          - node.hostname==ubuntu254
+      resources:
+        limits:
+          memory: 2048M       
+        reservations:
+          memory: 1024M       
+      restart_policy:         #
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+networks:
+  main_public:
+    external: trues

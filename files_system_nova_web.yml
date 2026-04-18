@@ -1,0 +1,45 @@
+services:
+  web:
+    container_name: files_system_nova_web
+    hostname: files-system-nova.jarudat.com
+    image: jimmyjarudat/file_system_nova_web:latest
+    ports:
+      - "3006:3000"  
+    environment:
+      TZ: "Asia/Bangkok"
+      
+    # Health Check Configuration
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - 8.8.4.4
+    networks:
+      - main_public
+    extra_hosts:
+      - "ubuntu254:192.168.2.254"
+      - "host.docker.internal:host-gateway"
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+          - node.hostname==ubuntu254
+      resources:
+        limits:
+          memory: 256M        # Frontend ใช้ memory น้อยกว่า
+        reservations:
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+networks:
+  main_public:
+    external: true

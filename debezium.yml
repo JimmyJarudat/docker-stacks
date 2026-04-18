@@ -1,0 +1,152 @@
+version: "3.8"
+
+services:
+  # =====================================
+  # Debezium สำหรับ MariaDB (files_system)
+  # =====================================
+  debezium-mariadb:
+    image: debezium/server:2.5
+    hostname: debezium-mariadb.jarudat.com
+    container_name: debezium-mariadb
+    environment:
+      # Source - MariaDB Configuration
+      DEBEZIUM_SOURCE_CONNECTOR_CLASS: io.debezium.connector.mysql.MySqlConnector
+      DEBEZIUM_SOURCE_DATABASE_HOSTNAME: hostname
+      DEBEZIUM_SOURCE_DATABASE_PORT: 3306
+      DEBEZIUM_SOURCE_DATABASE_USER: root
+      DEBEZIUM_SOURCE_DATABASE_PASSWORD: my password
+      DEBEZIUM_SOURCE_DATABASE_SERVER_ID: 184054
+      DEBEZIUM_SOURCE_DATABASE_SERVER_NAME: mariadb_server
+      DEBEZIUM_SOURCE_TOPIC_PREFIX: my-db
+      
+      # รับทุก table ในฐาน files_system
+      DEBEZIUM_SOURCE_DATABASE_INCLUDE_LIST: files_system
+      
+      # ไม่ snapshot ข้อมูลเก่า - ติดตามแค่การเปลี่ยนแปลงใหม่
+      DEBEZIUM_SOURCE_SNAPSHOT_MODE: schema_only
+      
+      # Sink - HTTP Configuration
+      DEBEZIUM_SINK_TYPE: http
+      DEBEZIUM_SINK_HTTP_URL: http://host:3010/api/debezium/files-system/events
+      
+      # Format
+      DEBEZIUM_FORMAT_KEY: json
+      DEBEZIUM_FORMAT_VALUE: json
+      
+      # Offset storage
+      DEBEZIUM_SOURCE_OFFSET_STORAGE_FILE_FILENAME: /debezium/mariadb-offsets.dat
+      DEBEZIUM_SOURCE_OFFSET_FLUSH_INTERVAL_MS: 60000
+      
+      # Schema history
+      DEBEZIUM_SOURCE_SCHEMA_HISTORY_INTERNAL: io.debezium.storage.file.history.FileSchemaHistory
+      DEBEZIUM_SOURCE_SCHEMA_HISTORY_INTERNAL_FILE_FILENAME: /debezium/mariadb-schema-history.dat
+      
+    volumes:
+      - debezium_mariadb_data:/debezium
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - 8.8.4.4
+    networks:
+      - main_public
+    extra_hosts:
+      - "ubuntu254:192.168.2.254"
+      - "host.docker.internal:host-gateway"
+    deploy:
+      placement:
+        constraints:
+          - node.role==worker
+          - node.hostname==docker2.profile.co.th
+          # - node.hostname==docker-desktop
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 512M
+      restart_policy:
+        condition: any
+        delay: 10s
+
+  # =====================================
+  # Debezium สำหรับ SQL Server (yii2_files_system)
+  # =====================================
+  debezium-sqlserver:
+    image: debezium/server:2.5
+    hostname: debezium-sqlserver.profile.co.th
+    container_name: debezium-sqlserver
+    environment:
+      # Source - SQL Server Configuration
+      DEBEZIUM_SOURCE_CONNECTOR_CLASS: io.debezium.connector.sqlserver.SqlServerConnector
+      DEBEZIUM_SOURCE_DATABASE_HOSTNAME: host
+      DEBEZIUM_SOURCE_DATABASE_PORT: 1433
+      DEBEZIUM_SOURCE_DATABASE_USER: username
+      DEBEZIUM_SOURCE_DATABASE_PASSWORD: password
+      DEBEZIUM_SOURCE_DATABASE_NAMES: mydb
+      DEBEZIUM_SOURCE_DATABASE_SERVER_NAME: sqlserver
+      DEBEZIUM_SOURCE_TOPIC_PREFIX: sqlserver
+
+      # SSL Configuration - ปิด SSL validation
+      DEBEZIUM_SOURCE_DATABASE_ENCRYPT: "false"
+      DEBEZIUM_SOURCE_DATABASE_TRUSTSERVERCERTIFICATE: "true"
+      
+      # ติดตามเฉพาะ table ที่ต้องการ (ลบบรรทัดนี้ถ้าต้องการทุก table)
+      DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: dbo.text_file,dbo.text_line
+      
+      # ไม่ snapshot ข้อมูลเก่า - ติดตามแค่การเปลี่ยนแปลงใหม่
+      DEBEZIUM_SOURCE_SNAPSHOT_MODE: schema_only
+      
+      # Sink - HTTP Configuration
+      DEBEZIUM_SINK_TYPE: http
+      DEBEZIUM_SINK_HTTP_URL: http://host:3010/api/debezium/yii2/events
+      
+      # Format
+      DEBEZIUM_FORMAT_KEY: json
+      DEBEZIUM_FORMAT_VALUE: json
+      
+      # Offset storage
+      DEBEZIUM_SOURCE_OFFSET_STORAGE_FILE_FILENAME: /debezium/sqlserver-offsets.dat
+      DEBEZIUM_SOURCE_OFFSET_FLUSH_INTERVAL_MS: 60000
+      
+      # Schema history
+      DEBEZIUM_SOURCE_SCHEMA_HISTORY_INTERNAL: io.debezium.storage.file.history.FileSchemaHistory
+      DEBEZIUM_SOURCE_SCHEMA_HISTORY_INTERNAL_FILE_FILENAME: /debezium/sqlserver-schema-history.dat
+      
+      # Performance tuning (optional)
+      # DEBEZIUM_SOURCE_MAX_BATCH_SIZE: 1024
+      # DEBEZIUM_SOURCE_MAX_QUEUE_SIZE: 4096
+      
+    volumes:
+      - debezium_sqlserver_data:/debezium
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - 8.8.4.4
+    networks:
+      - main_public
+    extra_hosts:
+      - "ubuntu254:192.168.2.254"
+      - "host.docker.internal:host-gateway"
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+          - node.hostname==docker1.profile.co.th
+          # - node.hostname==docker-desktop
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 512M
+      restart_policy:
+        condition: any
+        delay: 10s
+
+volumes:
+  debezium_mariadb_data:
+    external: true
+  debezium_sqlserver_data:
+    external: true
+    
+networks:
+  main_public:
+    external: true

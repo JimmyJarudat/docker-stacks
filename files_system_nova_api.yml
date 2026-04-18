@@ -1,0 +1,44 @@
+services:
+  web:
+    container_name: files_system_nova_api
+    hostname: files-system-nova-api.jarudat.com
+    image: jimmyjarudat/files_system_nova_api:latest
+    healthcheck:
+      disable: true
+    ports:
+      - "3005:3000"                   
+    environment:
+      TZ: "Asia/Bangkok"
+      NODE_ENV: "production"
+      DOCKER_CONTAINER: "true"
+      PORT: "3000"                    
+
+      DATABASE_URL: "my-database-url"
+
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - 8.8.4.4
+
+    networks:
+      - main_public
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+          - node.hostname==ubuntu254
+      resources:
+        limits:
+          memory: 512M       
+        reservations:
+          memory: 256M       
+      restart_policy:         #
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+networks:
+  main_public:
+    external: trues

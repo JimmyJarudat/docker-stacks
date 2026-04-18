@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "8088:80"
+    depends_on:
+      - php-fpm
+    networks:
+      - main_public
+      - web8088
+    deploy:
+      restart_policy:
+        condition: any
+
+  php-fpm:
+    image: php:7.4-fpm-alpine
+    networks:
+      - web8088
+    deploy:
+      restart_policy:
+        condition: any
+
+networks:
+  main_public:
+    external: true
+  web8088:
+    driver: overlay
+    attachable: true

@@ -1,0 +1,118 @@
+version: '3.8'
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    restart: unless-stopped
+    ports:
+      - "3007:6379"
+    
+    command: >
+      redis-server
+      --requirepass Nova@2025!
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --bind 0.0.0.0
+      --protected-mode yes
+      --timeout 300
+      --tcp-keepalive 300
+      --databases 16
+      --maxclients 100
+    
+    volumes:
+      - redis_data:/data
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "Nova@2025!", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    environment:
+      REDIS_REPLICATION_MODE: master
+      REDIS_PASSWORD: "my-password"
+    
+    networks:
+      - main_public
+    
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - 8.8.4.4
+    
+    # Security & Performance
+    security_opt:
+      - no-new-privileges:true
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    labels:
+      - "com.example.service=redis"
+      - "com.example.description=Redis Cache Server"
+    
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+          - node.hostname==ubuntu254
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        
+  redis-ui:
+    image: redis/redisinsight:latest
+    container_name: redis_ui
+    restart: unless-stopped
+    ports:
+      - "3008:5540"
+    
+    volumes:
+      - redis_ui_data:/data
+    
+    networks:
+      - main_public
+      
+    depends_on:
+      - redis
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    
+    labels:
+      - "com.example.service=redis-ui"
+      - "com.example.description=Redis Web Interface"
+
+volumes:
+  redis_data:
+    driver: local
+  redis_ui_data:
+    driver: local
+
+networks:
+  main_public:
+    external: true
